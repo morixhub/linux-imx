@@ -58,7 +58,7 @@ static struct fb_videomode lcdif_modedb[] = {
 	0,},
 	{
 	/* 480x272 @ 60 Hz , pixel clk @ 9MHz */
-	"AMPIRE-AM480272MNTMQW-T00H", 60, 480, 272, 111111, 40, 2, 2, 2, 2, 10,
+	"AMPIRE-AM480272MNTMQW-T00H", 60, 480, 272, 111111, 36, 5, 3, 2, 4, 10,
 	FB_SYNC_CLK_LAT_FALL,
 	FB_VMODE_NONINTERLACED,
 	0,},
