@@ -182,6 +182,27 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
+
+	spidev@0x00 {
+		compatible = "spidev";
+        spi-max-frequency = <20000000>;
+        reg = <0>;
+		status = "okay";
+    };
+
+	spidev@0x01 {
+		compatible = "spidev";
+        spi-max-frequency = <20000000>;
+        reg = <1>;
+		status = "okay";
+    };
+
+	spidev@0x02 {
+		compatible = "spidev";
+        spi-max-frequency = <20000000>;
+        reg = <2>;
+		status = "okay";
+    };
 };
 
 &ecspi2 {
@@ -190,6 +211,20 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
+
+	spidev@0x00 {
+		compatible = "spidev";
+                spi-max-frequency = <20000000>;
+                reg = <0>;
+		status = "okay";
+        };
+
+	spidev@0x01 {
+		compatible = "spidev";
+                spi-max-frequency = <20000000>;
+                reg = <1>;
+		status = "okay";
+        };
 };
 
 &esai {
