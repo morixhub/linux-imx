@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
 {
 	int ret = 0;
 	int fd;
+	int repeat = 0;
 
 	parse_opts(argc, argv);
 
@@ -209,7 +210,12 @@ int main(int argc, char *argv[])
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
-	transfer(fd);
+	while(1)
+	{
+		printf("\rtransfer attempt: %d", ++repeat);
+
+		transfer(fd);
+	}
 
 	close(fd);
 

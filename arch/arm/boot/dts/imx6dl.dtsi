@@ -183,6 +183,7 @@
 	compatible = "fsl,imx6dl-hdmi";
 };
 
+/*
 &iomuxc {
 	epdc {
 		pinctrl_epdc_0: epdcgrp-0 {
@@ -211,3 +212,4 @@
 		};
 	};
 };
+*/
