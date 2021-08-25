@@ -476,17 +476,18 @@ static int tsc2004_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT, 0, 0);
 
-	err = request_irq(ts->irq, tsc2004_irq, IRQF_TRIGGER_FALLING,
-			client->dev.driver->name, ts);
-	if (err < 0) {
-		dev_err(&client->dev, "irq %d busy(%d)?\n", ts->irq,err);
-		goto err_free_mem;
-	}
 
 	/* Prepare for touch readings */
 	err = tsc2004_prepare_for_reading(ts);
 	if (err < 0)
-		goto err_free_irq;
+		goto err_free_mem;
+
+	err = request_irq(ts->irq, tsc2004_irq, IRQF_TRIGGER_FALLING,
+		client->dev.driver->name, ts);
+	if (err < 0) {
+		dev_err(&client->dev, "irq %d busy(%d)?\n", ts->irq,err);
+		goto err_free_mem;
+	}
 
 	err = input_register_device(input_dev);
 	if (err)
