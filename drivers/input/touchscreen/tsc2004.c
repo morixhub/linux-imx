@@ -170,6 +170,7 @@ struct tsc2004 {
 	u16			x_plate_ohms;
 
 	bool			pendown;
+	int 			null_pressure_consecutive_readings;
 	int			irq;
 
 	int			(*get_pendown_state)(void);
@@ -366,12 +367,14 @@ static void tsc2004_work(struct work_struct *work)
 
 		translate(&tc.x, &tc.y);
 
-		if (!ts->pendown) {
+		if (!ts->get_pendown_state && !ts->pendown) {
 			dev_dbg(&ts->client->dev, "DOWN\n");
 
 			input_report_key(input, BTN_TOUCH, 1);
 			ts->pendown = true;
 		}
+
+		ts->null_pressure_consecutive_readings = 0;
 
 		input_report_abs(input, ABS_X, tc.x);
 		input_report_abs(input, ABS_Y, tc.y);
@@ -383,13 +386,18 @@ static void tsc2004_work(struct work_struct *work)
 			tc.x, tc.y, rt);
 
 	} else if (!ts->get_pendown_state && ts->pendown) {
-		/*
-		 * We don't have callback to check pendown state, so we
-		 * have to assume that since pressure reported is 0 the
-		 * pen was lifted up.
-		 */
-		tsc2004_send_up_event(ts);
-		ts->pendown = false;
+		if(ts->null_pressure_consecutive_readings < 5)
+			ts->null_pressure_consecutive_readings++;
+		else
+		{
+			/*
+			* We don't have callback to check pendown state, so we
+			* have to assume that since pressure reported is 0 the
+			* pen was lifted up.
+			*/
+			tsc2004_send_up_event(ts);
+			ts->pendown = false;
+		}
 	}
 
  out:
