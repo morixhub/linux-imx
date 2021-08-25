@@ -98,6 +98,15 @@
 		interrupt-parent = <&gpio2>;
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 	};
+	
+	/* TI TSC2004 touchscreen */
+	tsc2004@4a {
+		compatible = "ti,tsc2004";
+		reg = <0x4a>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		ti,x-plate-ohms = <180>;
+	};
 
 	/* ST M24C08 EEPROM */
 	m24c08@50 {
