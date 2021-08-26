@@ -1,8 +1,9 @@
 /*
  * drivers/input/touchscreen/tsc2004.c
  *
- * Copyright (C) 2009 Texas Instruments Inc
- * Author: Vaibhav Hiremath <hvaibhav@ti.com>
+ * Copyright (C) 2009-2021 Texas Instruments Inc
+ * Authors: Vaibhav Hiremath <hvaibhav@ti.com>
+ *          Morix Dev <morix.dev@gmail.com>
  *
  * Using code from:
  *  - tsc2007.c
