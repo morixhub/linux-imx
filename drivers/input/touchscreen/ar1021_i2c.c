@@ -21,6 +21,19 @@
 #define AR1021_CMD	0x55
 
 #define AR1021_CMD_ENABLE_TOUCH		0x12
+#define AR1021_CMD_DISABLE_TOUCH	0x13
+
+static const u8 CMD_ENABLE_TOUCH[] = {
+		AR1021_CMD,
+		0x01, /* number of bytes after this */
+		AR1021_CMD_ENABLE_TOUCH
+	};
+
+static const u8 CMD_DISABLE_TOUCH[] = {
+		AR1021_CMD,
+		0x01, /* number of bytes after this */
+		AR1021_CMD_DISABLE_TOUCH
+	};
 
 struct ar1021_i2c {
 	struct i2c_client *client;
@@ -60,17 +73,12 @@ out:
 
 static int ar1021_i2c_open(struct input_dev *dev)
 {
-	static const u8 cmd_enable_touch[] = {
-		AR1021_CMD,
-		0x01, /* number of bytes after this */
-		AR1021_CMD_ENABLE_TOUCH
-	};
 	struct ar1021_i2c *ar1021 = input_get_drvdata(dev);
 	struct i2c_client *client = ar1021->client;
 	int error;
 
-	error = i2c_master_send(ar1021->client, cmd_enable_touch,
-				sizeof(cmd_enable_touch));
+	error = i2c_master_send(ar1021->client, CMD_ENABLE_TOUCH,
+				sizeof(CMD_ENABLE_TOUCH));
 	if (error < 0)
 		return error;
 
@@ -99,6 +107,14 @@ static int ar1021_i2c_probe(struct i2c_client *client,
 		return -ENXIO;
 	}
 
+	/* Try to disable touch, just to see if the controller is actually there */
+	error = i2c_master_send(client, CMD_DISABLE_TOUCH,
+				sizeof(CMD_DISABLE_TOUCH));
+	if (error < 0) {
+		dev_err(&client->dev, "probing error");
+		return error;
+	}
+
 	ar1021 = devm_kzalloc(&client->dev, sizeof(*ar1021), GFP_KERNEL);
 	if (!ar1021)
 		return -ENOMEM;
@@ -118,6 +134,8 @@ static int ar1021_i2c_probe(struct i2c_client *client,
 
 	__set_bit(INPUT_PROP_DIRECT, input->propbit);
 	input_set_capability(input, EV_KEY, BTN_TOUCH);
+	input_set_capability(input, EV_ABS, ABS_X);
+	input_set_capability(input, EV_ABS, ABS_Y);
 	input_set_abs_params(input, ABS_X, 0, AR1021_MAX_X, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, AR1021_MAX_Y, 0, 0);
 
@@ -132,6 +150,9 @@ static int ar1021_i2c_probe(struct i2c_client *client,
 			"Failed to enable IRQ, error: %d\n", error);
 		return error;
 	}
+
+	/* Start with IRQ initially disabled */
+	disable_irq(client->irq);
 
 	error = input_register_device(ar1021->input);
 	if (error) {
