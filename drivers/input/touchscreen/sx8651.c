@@ -282,7 +282,11 @@ static int sx8651_probe(struct i2c_client *client,
 	input_set_drvdata(sx8651->input, sx8651);
 
     /* Perform initialization */
-	sx8651_init(client);
+	error = sx8651_init(client);
+
+	if (error) {
+		return error;
+	}
     
     /* request and enable irq */
 	error = devm_request_threaded_irq(&client->dev, client->irq,
