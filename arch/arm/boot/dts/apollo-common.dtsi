@@ -256,8 +256,11 @@
 
 &i2c1 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_2>;
+	pinctrl-1 = <&pinctrl_i2c1_3>;
+	sda-gpio = <&gpio5 26 0>;
+	scl-gpio = <&gpio5 27 0>;
 	status = "okay";
 
 	/*
@@ -511,13 +514,24 @@
 			>;
 		};
 
+		/* //!!
 		pinctrl_i2c1: i2c1grp {
 			fsl,pins = <
 				MX6QDL_PAD_CSI0_DAT8__I2C1_SDA		SILVERBULLET_PAD_CTRL_I2C
 				MX6QDL_PAD_CSI0_DAT9__I2C1_SCL		SILVERBULLET_PAD_CTRL_I2C
 			>;
 		};
+		*/
 
+		/* //!!
+		pinctrl_i2c1_gpio: i2c1grp-gpio {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26 	SILVERBULLET_PAD_CTRL_I2C
+				MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27 	SILVERBULLET_PAD_CTRL_I2C
+			>;
+		}; */
+
+		/* //!!
 		pinctrl_i2c2: i2c2grp {
 			fsl,pins = <
 				MX6QDL_PAD_KEY_COL3__I2C2_SCL		SILVERBULLET_PAD_CTRL_I2C
@@ -531,6 +545,7 @@
 				MX6QDL_PAD_GPIO_6__I2C3_SDA		SILVERBULLET_PAD_CTRL_I2C
 			>;
 		};
+		*/
 
 		pinctrl_lcd: lcdgrp {
 			fsl,pins = <

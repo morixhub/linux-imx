@@ -1342,6 +1342,13 @@
 				MX6QDL_PAD_CSI0_DAT9__I2C1_SCL 0x4001b8b1
 			>;
 		};
+
+		pinctrl_i2c1_3: i2c1grp-3 {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26 0x4001b8b1
+				MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27 0x4001b8b1
+			>;
+		};
 	};
 
 	i2c2 {

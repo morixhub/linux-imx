@@ -53,6 +53,9 @@
 #include <linux/of_i2c.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/i2c-imx.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+
 
 /** Defines ********************************************************************
 *******************************************************************************/
@@ -84,6 +87,10 @@
 #define I2CR_MSTA	0x20
 #define I2CR_IIEN	0x40
 #define I2CR_IEN	0x80
+
+#define RECOVERY_NDELAY		5000
+#define RECOVERY_CLK_CNT	9
+
 
 /** Variables ******************************************************************
 *******************************************************************************/
@@ -131,6 +138,13 @@ struct imx_i2c_struct {
 
 	unsigned int            cur_clk;
 	unsigned int            bitrate;
+
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pinctrl_pins_default;
+	struct pinctrl_state *pinctrl_pins_gpio;
+
+	int sda_gpio;
+	int scl_gpio;
 };
 
 static struct platform_device_id imx_i2c_devtype[] = {
@@ -495,6 +509,175 @@ static struct i2c_algorithm i2c_imx_algo = {
 	.functionality	= i2c_imx_func,
 };
 
+static int get_scl(struct imx_i2c_struct * i2c_imx)
+{
+	/* Declare vars */
+	int ret = 0;
+
+	ret = gpio_direction_input(i2c_imx->scl_gpio);
+	if(ret)
+		return(ret);
+
+	return (gpio_get_value_cansleep(i2c_imx->scl_gpio));
+}
+
+static int set_scl(struct imx_i2c_struct * i2c_imx, int val)
+{
+	/* Declare vars */
+	int ret = 0;
+
+	ret = gpio_direction_output(i2c_imx->scl_gpio, val);
+	if(ret)
+		return(ret);
+
+	gpio_set_value_cansleep(i2c_imx->scl_gpio, val);
+	return(ret);
+}
+
+static int get_sda(struct imx_i2c_struct * i2c_imx)
+{
+	/* Declare vars */
+	int ret = 0;
+
+	ret = gpio_direction_input(i2c_imx->sda_gpio);
+	if(ret)
+		return(ret);
+
+	return (gpio_get_value_cansleep(i2c_imx->sda_gpio));
+}
+
+static int set_sda(struct imx_i2c_struct * i2c_imx, int val)
+{
+	/* Declare vars */
+	int ret = 0;
+
+	ret = gpio_direction_output(i2c_imx->sda_gpio, val);
+	if(ret)
+		return(ret);
+
+	gpio_set_value_cansleep(i2c_imx->sda_gpio, val);
+	return(ret);
+}
+
+static int i2c_generic_bus_free(struct imx_i2c_struct * i2c_imx)
+{
+	/* Declare vars */
+	int ret = -EBUSY;
+
+	/* Get SDA */
+	ret = get_sda(i2c_imx);
+	if(ret < 0)
+		return ret;
+
+	/* If SDA is high we can assume the bus is not free, otherwise it is busy */
+	return (ret ? 0 : -EBUSY);
+}
+
+static ssize_t do_reset(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	/* Vars declaration */
+	struct imx_i2c_struct *i2c_imx;
+	int i = 0, scl = 1, ret = 0;
+	int force = 0;
+
+	/* Check force mode */
+	if(count >= strlen("force")) {
+		if(strncmp(buf, "force", strlen("force")) == 0)
+			force = 1;
+	}
+
+	/* Dump info */
+	dev_info(dev, "<%s> initiated I2C bus reset\n", __func__);
+	
+	/* Retrieve driver data */
+	i2c_imx = (struct imx_i2c_struct *)dev_get_drvdata(dev);
+
+	if(!i2c_imx) {
+		dev_err(dev, "<%s> can't get driver data\n", __func__);
+		return count;
+	}
+
+	/* Switch pinctrl to GPIO */
+	if(pinctrl_select_state(i2c_imx->pinctrl, i2c_imx->pinctrl_pins_gpio)) {
+		dev_err(dev, "<%s> can't get/select GPIO pinctrl mode\n", __func__);
+		return count;
+	}
+
+	/* Dump info */
+	dev_info(dev, "<%s> I2C pinctrl switched to 'GPIO' mode\n", __func__);
+
+	/* //!! PERFORM RESET HERE //!! */
+	/*
+	 * If we can set SDA, we will always create a STOP to ensure additional
+	 * pulses will do no harm. This is achieved by letting SDA follow SCL
+	 * half a cycle later. Check the 'incomplete_write_byte' fault injector
+	 * for details. Note that we must honour tsu:sto, 4us, but lets use 5us
+	 * here for simplicity.
+	 */
+	set_scl(i2c_imx, scl);
+	ndelay(RECOVERY_NDELAY);
+	set_sda(i2c_imx, scl);
+	ndelay(RECOVERY_NDELAY / 2);
+
+	/*
+	 * By this time SCL is high, as we need to give 9 falling-rising edges
+	 */
+	while (i++ < RECOVERY_CLK_CNT * 2) {
+		if (scl) {
+			/* SCL shouldn't be low here */
+			if (!get_scl(i2c_imx)) {
+				dev_err(dev, "<%s> SCL is stuck low, exit recovery\n", __func__);
+				ret = -EBUSY;
+				break;
+			}
+		}
+
+		scl = !scl;
+		set_scl(i2c_imx, scl);
+		/* Creating STOP again, see above */
+		if (scl)  {
+			/* Honour minimum tsu:sto */
+			ndelay(RECOVERY_NDELAY);
+		} else {
+			/* Honour minimum tf and thd:dat */
+			ndelay(RECOVERY_NDELAY / 2);
+		}
+		set_sda(i2c_imx, scl);
+		ndelay(RECOVERY_NDELAY / 2);
+
+		if (scl) {
+			ret = i2c_generic_bus_free(i2c_imx);
+			if (ret == 0)
+				break;
+		}
+	}
+
+	if(!ret) {
+		/* Dump info */
+		dev_info(dev, "<%s> I2C reset apparently succeeded\n", __func__);
+	} else {
+		/* Dump info */
+		dev_warn(dev, "<%s> I2C reset apparently failed (exit value: %d)\n", __func__, ret);
+	}
+
+	/* Restore default pinctrl */
+	if(pinctrl_select_state(i2c_imx->pinctrl, i2c_imx->pinctrl_pins_default)) {
+		dev_err(dev, "<%s> can't get/select GPIO pinctrl mode\n", __func__);
+		return count;
+	}
+
+	/* Dump info */
+	dev_info(dev, "<%s> I2C pinctrl switched back to default mode\n", __func__);
+	
+	/* Dump info */
+	dev_info(dev, "<%s> I2C bus reset terminated\n", __func__);
+
+	return count;
+}
+
+static DEVICE_ATTR(reset, 0200, NULL, do_reset);
+
 static int __init i2c_imx_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id = of_match_device(i2c_imx_dt_ids,
@@ -502,7 +685,6 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
 	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
-	struct pinctrl *pinctrl;
 	void __iomem *base;
 	int irq, ret;
 
@@ -534,6 +716,64 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		pdev->id_entry = of_id->data;
 	i2c_imx->devtype = pdev->id_entry->driver_data;
 
+	i2c_imx->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if(!i2c_imx->pinctrl || IS_ERR(i2c_imx->pinctrl)) {
+		dev_err(&pdev->dev, "can't get pinctrl\n");
+		return PTR_ERR(i2c_imx->pinctrl);
+	}
+
+	i2c_imx->pinctrl_pins_default = pinctrl_lookup_state(i2c_imx->pinctrl, "default");
+	if(IS_ERR(i2c_imx->pinctrl_pins_default)) {
+
+		dev_err(&pdev->dev, "can't lookup default pinctrl\n");
+		return PTR_ERR(i2c_imx->pinctrl_pins_default);
+	}
+
+	i2c_imx->pinctrl_pins_gpio = pinctrl_lookup_state(i2c_imx->pinctrl, "gpio");
+	if(IS_ERR(i2c_imx->pinctrl_pins_gpio)) {
+
+		dev_warn(&pdev->dev, "can't lookup GPIO pinctrl\n");
+		i2c_imx->pinctrl_pins_gpio = NULL;
+
+	} else {
+
+		i2c_imx->sda_gpio = of_get_named_gpio(pdev->dev.of_node, "sda-gpio", 0);
+
+		if(!gpio_is_valid(i2c_imx->sda_gpio)) {
+			dev_warn(&pdev->dev, "can't get SDA GPIO\n");
+		} else {
+			dev_info(&pdev->dev, "SDA GPIO=%d\n", i2c_imx->sda_gpio);
+			if(gpio_request(i2c_imx->sda_gpio, "sda")) {
+				dev_warn(&pdev->dev, "can't request SDA GPIO\n");
+				i2c_imx->sda_gpio = -1;
+			}
+		}
+		
+		i2c_imx->scl_gpio = of_get_named_gpio(pdev->dev.of_node, "scl-gpio", 0);
+
+		if(!gpio_is_valid(i2c_imx->scl_gpio)) {
+			dev_warn(&pdev->dev, "can't get SCL GPIO\n");
+		} else {
+			dev_info(&pdev->dev, "SCL GPIO=%d\n", i2c_imx->scl_gpio);
+			if(gpio_request(i2c_imx->scl_gpio, "scl")) {
+				dev_warn(&pdev->dev, "can't request SCL GPIO\n");
+				i2c_imx->scl_gpio = -1;
+			}
+		}
+	}
+
+	if(pinctrl_select_state(i2c_imx->pinctrl, i2c_imx->pinctrl_pins_default)) {
+		dev_err(&pdev->dev, "can't select default pinctrl\n");
+		return -1;
+	}
+
+	/* //!!
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		dev_err(&pdev->dev, "can't get/select pinctrl\n");
+		return PTR_ERR(pinctrl);
+	} */
+
 	/* Setup i2c_imx driver structure */
 	strlcpy(i2c_imx->adapter.name, pdev->name, sizeof(i2c_imx->adapter.name));
 	i2c_imx->adapter.owner		= THIS_MODULE;
@@ -542,12 +782,6 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx->adapter.nr 		= pdev->id;
 	i2c_imx->adapter.dev.of_node	= pdev->dev.of_node;
 	i2c_imx->base			= base;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "can't get/select pinctrl\n");
-		return PTR_ERR(pinctrl);
-	}
 
 	/* Get I2C clock */
 	i2c_imx->clk = devm_clk_get(&pdev->dev, NULL);
@@ -594,6 +828,14 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	/* Set up platform driver data */
 	platform_set_drvdata(pdev, i2c_imx);
 
+	/* Create the device file for triggering reset, if conditions apply */
+	if(i2c_imx->pinctrl_pins_gpio && gpio_is_valid(i2c_imx->sda_gpio) && gpio_is_valid(i2c_imx->scl_gpio)) {
+		dev_info(&pdev->dev, "device supports I2C reset procedure");
+		device_create_file(&i2c_imx->adapter.dev, &dev_attr_reset);
+	} else {
+		dev_warn(&pdev->dev, "missing I2C reset info: device is not going to support I2C reset");
+	}
+
 	dev_dbg(&i2c_imx->adapter.dev, "claimed irq %d\n", irq);
 	dev_dbg(&i2c_imx->adapter.dev, "device resources from 0x%x to 0x%x\n",
 		res->start, res->end);
@@ -610,6 +852,9 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 {
 	struct imx_i2c_struct *i2c_imx = platform_get_drvdata(pdev);
 
+	/* Remove the device file for triggering reset */
+	device_remove_file(&i2c_imx->adapter.dev, &dev_attr_reset);
+
 	/* remove adapter */
 	dev_dbg(&i2c_imx->adapter.dev, "adapter removed\n");
 	i2c_del_adapter(&i2c_imx->adapter);
@@ -619,6 +864,17 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 	writeb(0, i2c_imx->base + IMX_I2C_IFDR);
 	writeb(0, i2c_imx->base + IMX_I2C_I2CR);
 	writeb(0, i2c_imx->base + IMX_I2C_I2SR);
+
+	/* Release GPIOs, if any */
+	if(gpio_is_valid(i2c_imx->scl_gpio)) {
+		gpio_free(i2c_imx->scl_gpio);
+		i2c_imx->scl_gpio = -1;
+	}
+
+	if(gpio_is_valid(i2c_imx->sda_gpio)) {
+		gpio_free(i2c_imx->sda_gpio);
+		i2c_imx->sda_gpio = -1;
+	}
 
 	return 0;
 }

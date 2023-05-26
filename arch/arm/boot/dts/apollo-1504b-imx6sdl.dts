@@ -154,3 +154,13 @@
 &usdhc1 {
 	non-removable;
 };
+
+&ecspi1 {
+
+	spifb@0 {
+		compatible = "aesys,spifb";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-cs-high;
+	};
+};
