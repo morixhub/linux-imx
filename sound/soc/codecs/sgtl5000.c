@@ -964,6 +964,9 @@ static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
+	/* log regulators values */
+	dev_info(codec->dev, "<%s> VDDA=%dmV, VDDIO=%dmV, VDDD=%dmV\n", __func__, vdda, vddio, vddd);
+
 	/* according to datasheet, maximum voltage of supplies */
 	if (vdda > 3600 || vddio > 3600 || vddd > 1980) {
 		dev_err(codec->dev,

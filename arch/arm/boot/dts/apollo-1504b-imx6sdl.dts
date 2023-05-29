@@ -74,7 +74,7 @@
 		reg = <0x0a>;
 		clocks = <&clks 201>;
 		VDDD-supply = <&reg_1p8v>;
-		VDDA-supply = <&reg_2p5v>;
+		VDDA-supply = <&reg_3p3v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
