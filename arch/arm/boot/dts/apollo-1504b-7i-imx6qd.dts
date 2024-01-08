@@ -8,20 +8,20 @@
 
 /dts-v1/;
 
-#include "imx6dl.dtsi"
-#include "apollo-common-parking.dtsi"
+#include "imx6q.dtsi"
+#include "apollo-common.dtsi"
 
 / {
-	model = "Aesys 1504B (i.MX6 DualLite/Solo)";
-	compatible = "aesys,imx6dl-apollo", "umobo,imx6dl-silverbullet", "fsl,imx6dl";
+	model = "Aesys 1504B (i.MX6 Quad/Dual)";
+	compatible = "aesys,imx6q-apollo", "umobo,imx6q-silverbullet", "fsl,imx6q";
 
 	regulators {
-		/*ad799x_vref: ad799x_3p3v {
+		ad799x_vref: ad799x_3p3v {
 			compatible = "regulator-fixed";
 			regulator-name = "ad799x_vref";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-		};*/
+		};
 
 		reg_1p8v: 1p8v {
 			compatible = "regulator-fixed";
@@ -48,7 +48,7 @@
 		};
 	};
 
-	/*sound {
+	sound {
 		compatible = "fsl,imx6q-sabrelite-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";
 		model = "imx6q-sabrelite-sgtl5000";
@@ -60,30 +60,26 @@
 			"Headphone Jack", "HP_OUT";
 		mux-int-port = <1>;
 		mux-ext-port = <3>;
-	};*/
-};
-
-&pxp {
-	status = "okay";
+	};
 };
 
 &i2c1 {
 	/* Freescale SGTL5000 Audio */
-	/*codec: sgtl5000@0a {
+	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks 201>;
 		VDDD-supply = <&reg_1p8v>;
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;
-	};*/
+	};
 
 	/* Analog Devices AD7997 ADC */
-	/*ad799x@22 {
+	ad799x@22 {
 		compatible = "adi,ad7997";
 		reg = <0x22>;
 		adi,vref = /bits/ 16 <3300>;
-	};*/
+	};
 
 	/* Microchip MCP9801 temperature sensor */
 	mcp9801@48 {
@@ -95,22 +91,6 @@
 	sx8651@49 {
 		compatible = "semtech,sx8651";
 		reg = <0x49>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-	};
-	
-	/* TI TSC2004 touchscreen */
-	tsc2004@4a {
-		compatible = "ti,tsc2004";
-		reg = <0x4a>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-	};
-
-	/* Microchip AR1021 I2C touchscreen */
-	ar1021@4d {
-		compatible = "microchip,ar1021-i2c";
-		reg = <0x4d>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 	};
@@ -134,7 +114,7 @@
 	compatible = "fsl,mxc_sdc_fb";
 	disp_dev = "lcd";
 	interface_pix_fmt = "RGB24";
-	mode_str ="AMPIRE-AM480272MNTMQW-T00H";
+	mode_str ="DISEN-DS070BOE50N-075H";
 	default_bpp = <16>;
 	int_clk = <0>;
 	late_init = <0>;

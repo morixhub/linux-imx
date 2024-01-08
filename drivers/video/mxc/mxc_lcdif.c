@@ -62,6 +62,12 @@ static struct fb_videomode lcdif_modedb[] = {
 	FB_SYNC_CLK_LAT_FALL,
 	FB_VMODE_NONINTERLACED,
 	0,},
+	{
+	/* 1024x600 @ 60 Hz , pixel clk @ 40.8MHz */
+	"DISEN-DS070BOE50N-075H", 60, 1024, 600, 24509, 160, 16, 23, 1, 1, 1,
+	FB_SYNC_CLK_LAT_FALL,
+	FB_VMODE_NONINTERLACED,
+	0,},
 };
 static int lcdif_modedb_sz = ARRAY_SIZE(lcdif_modedb);
 
